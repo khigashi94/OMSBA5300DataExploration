@@ -1,0 +1,54 @@
+---
+title: "Data_Exploration_MarkDown"
+author: "Kristen Higashi"
+date: "2/19/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+## R Markdown
+
+#Libraries
+```{r}
+library(car)
+library(vtable)
+library(jtools)
+library(vtable)
+library(purrr)
+library(tidyverse)
+```
+
+## Load/Join Data Tables
+```{r}
+# Set Working Directory
+# setwd("C:/Users/krist/Documents/SU_OMSBA/Winter_2021/OMSBA_5300/DataExploration/OMSBA5300DataExploration/Data")
+
+# Bind "trends_up_to_" data
+trends_all <- data.frame()
+for (data in list.files(pattern = "trends_up_to_")){
+  temp <- read.csv(data)
+  trends_all <- rbind(trends_all, temp)
+}
+
+# Scorecard and ID CSVs
+score_card <- read.csv("Most+Recent+Cohorts+(Scorecard+Elements).csv")
+id_name <- read.csv("id_name_link.csv")
+
+coll_ids <- left_join(id_name, score_card, by = c("unitid"="UNITID"))
+
+
+unique_df <- unique(left_join(trends_all, coll_ids, by = c("schname" = "schname"))) 
+
+```
+
+
+## Determine "colleges that predominantly grant bachelor’s degrees"
+```{r}
+
+# Join trends_all and coll_ids - Unique rows only
+
+```
