@@ -14,12 +14,16 @@ knitr::opts_chunk$set(echo = TRUE)
 
 #Libraries
 ```{r}
+
 library(car)
 library(vtable)
 library(jtools)
 library(vtable)
 library(purrr)
 library(tidyverse)
+library(dplyr)
+
+
 ```
 
 ## Load/Join Data Tables
@@ -46,9 +50,50 @@ unique_df <- unique(left_join(trends_all, coll_ids, by = c("schname" = "schname"
 ```
 
 
-## Determine "colleges that predominantly grant bachelor’s degrees"
-```{r}
+## Load/Join Data Tables
 
-# Join trends_all and coll_ids - Unique rows only
+## Bind "trends_up_to_" data
+```{r}
+trends_all <- data.frame()
+for (data in list.files(pattern = "trends_up_to_")){
+  temp <- read.csv(data)
+  trends_all <- rbind(trends_all, temp)
+}
+```
+# Scorecard and ID CSVs
+```{r}
+score_card <- read.csv("Most+Recent+Cohorts+(Scorecard+Elements).csv")
+id_name <- read.csv("id_name_link.csv")%>%
+  distinct(schname, .keep_all = TRUE)
+coll_ids <- left_join(id_name, score_card, by = c("unitid"="UNITID"))
+```
+
+# Full join - Removes all "not currently open institutions"
+```{r}
+df_undg <- left_join(coll_ids, trends_all, by = c("schname" = "schname"))%>%
+  filter(PREDDEG == 3, !is.null(monthorweek), CURROPER == 1)%>% 
+  mutate(num_earnings = as.numeric(md_earn_wne_p10.REPORTED.EARNINGS), yr = as.Date(str_sub(monthorweek, 1, 4), "%Y")) %>%
+  mutate(key = paste(opeid,monthorweek, sep = "_"), date_state = paste(STABBR, monthorweek, sep="_"))%>%
+  # select(-unitid, -opeid, -OPEID, -opeid6, -monthorweek)%>%
+  filter(!is.na(num_earnings))%>%
+  
+  # Mutate variables to correct class(es)
+  select(key, date_state, unitid, opeid, opeid6,	schname, INSTNM, STABBR, yr, monthorweek, STABBR, num_earnings, keyword, keynum, index, c(HBCU:WOMENONLY), RELAFFIL, DISTANCEONLY, starts_with("PCIP"), starts_with("UGDS"), ACTCMMID, SAT_AVG, SAT_AVG_ALL, starts_with("NPT"), starts_with("RET"), starts_with("GRAD"), RPY_3YR_RT_SUPP, PCTFLOAN, PCTPELL, UG25abv, C150_4_POOLED_SUPP.REPORTED.GRAD.RATE, PPTUG_EF)%>%
+  mutate_at(vars(c(HBCU:WOMENONLY), RELAFFIL, DISTANCEONLY), as.factor)%>%
+  mutate_at(vars(matches("PCIP"), matches("UGDS")), as.numeric)%>%
+  mutate_at(vars(matches("NPT"), matches("RET"), matches("GRAD"), RPY_3YR_RT_SUPP, PCTFLOAN, PCTPELL), as.numeric)%>%
+  mutate(UG25abv = as.numeric(UG25abv), C150_4_POOLED_SUPP.REPORTED.GRAD.RATE= as.numeric( C150_4_POOLED_SUPP.REPORTED.GRAD.RATE), PPTUG_EF = as.numeric(PPTUG_EF))%>%
+  mutate_at(vars(ACTCMMID, SAT_AVG, SAT_AVG_ALL), as.numeric)%>%
+  group_by(schname, monthorweek)%>%
+  mutate(ct_index = sum(index), num_keywords = max(keynum))%>%
+  ungroup()%>%
+  filter(!is.na(monthorweek), !is.na(num_earnings))%>%
+  
+  group_by(date_state)%>%
+  mutate(limit_earnings = mean(num_earnings) + sd(num_earnings))%>%
+  ungroup()%>%
+
+  mutate(exc_earning = num_earnings>= limit_earnings)%>%
+  filter(!is.na(exc_earning))
 
 ```
